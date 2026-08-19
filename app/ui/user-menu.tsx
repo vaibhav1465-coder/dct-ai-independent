@@ -19,7 +19,7 @@ export function UserMenu({ email }: { email: string }) {
     const formData = new FormData(form);
     const response = await fetch("/api/user-feedback", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", "x-dct-csrf": "1" },
       body: JSON.stringify({ subject: formData.get("subject"), message: formData.get("message") }),
     });
     if (response.ok) {

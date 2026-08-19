@@ -26,3 +26,24 @@ export async function enforceLimits(userId: string) {
   await Promise.all([redis.expire(`dct:rate:${userId}:${slot}`, 1_000), redis.expire(`dct:daily:${day}`, 172_800)]);
   return perUser <= userLimit && daily <= dailyLimit;
 }
+
+export async function enforceActionLimit(action: string, userId: string, limit = 10, windowSeconds = 900) {
+  const redis = redisClient();
+  const safeAction = action.replace(/[^a-z0-9:_-]/gi, "-").slice(0, 40);
+  if (redis) {
+    const slot = Math.floor(Date.now() / (windowSeconds * 1_000));
+    const key = `dct:action:${safeAction}:${userId}:${slot}`;
+    const count = await redis.incr(key);
+    if (count === 1) await redis.expire(key, windowSeconds + 60);
+    return count <= limit;
+  }
+
+  const key = `${safeAction}:${userId}`;
+  const now = Date.now();
+  const value = local.get(key);
+  const next = !value || value.expires <= now
+    ? { count: 1, expires: now + windowSeconds * 1_000 }
+    : { ...value, count: value.count + 1 };
+  local.set(key, next);
+  return next.count <= limit;
+}

@@ -5,15 +5,15 @@ import { outputSummary, validateCheck } from "../../../lib/validation";
 import { prisma } from "../../../lib/prisma";
 import { getArticleLabel } from "../../../lib/article-label";
 import { detectAiContent } from "../../../lib/ai-detection";
+import { rejectUnsafeMutation } from "../../../lib/request-security";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
 
 export async function POST(request: Request) {
   const started = Date.now();
-  if (Number(request.headers.get("content-length") ?? 0) > 120_000) return Response.json({ error: "Request too large." }, { status: 413 });
-  if (request.headers.get("sec-fetch-site") && request.headers.get("sec-fetch-site") !== "same-origin") return Response.json({ error: "Cross-origin requests are not allowed." }, { status: 403 });
-  if (!request.headers.get("x-dct-csrf")) return Response.json({ error: "Request verification failed." }, { status: 403 });
+  const unsafeRequest = rejectUnsafeMutation(request);
+  if (unsafeRequest) return unsafeRequest;
   const user = await getCurrentUser();
   if (!user) return Response.json({ error: "Sign in with an approved Indian Express account." }, { status: 401 });
   try { if (!(await enforceLimits(user.id))) return Response.json({ error: "Usage limit reached. Try again later." }, { status: 429 }); } catch { return Response.json({ error: "The safety limit service is unavailable." }, { status: 503 }); }

@@ -1,11 +1,14 @@
 import { z } from "zod";
 import { getCurrentUser } from "../../../lib/auth";
 import { prisma } from "../../../lib/prisma";
+import { enforceActionLimit } from "../../../lib/rate-limit";
+import { rejectUnsafeMutation } from "../../../lib/request-security";
 const schema = z.object({ checkId: z.string().cuid(), rating: z.number().int().min(1).max(5), comment: z.string().max(500).optional() }).strict();
 
 export async function POST(request: Request) {
-  if (!request.headers.get("x-dct-csrf")) return Response.json({ error: "Request verification failed." }, { status: 403 });
+  const unsafeRequest = rejectUnsafeMutation(request, 10_000); if (unsafeRequest) return unsafeRequest;
   const user = await getCurrentUser(); if (!user || user.id === "local-admin") return Response.json({ error: "Sign in to save feedback." }, { status: 401 });
+  if (!(await enforceActionLimit("rating", user.id, 10))) return Response.json({ error: "Too many feedback requests. Try again later." }, { status: 429 });
   const parsed = schema.safeParse(await request.json().catch(() => null)); if (!parsed.success) return Response.json({ error: "Invalid feedback." }, { status: 400 });
   const check = await prisma.checkMetadata.findFirst({ where: { id: parsed.data.checkId, userId: user.id } }); if (!check) return Response.json({ error: "Check not found." }, { status: 404 });
   await prisma.feedback.upsert({ where: { checkId: check.id }, update: { rating: parsed.data.rating, comment: parsed.data.comment }, create: { checkId: check.id, userId: user.id, rating: parsed.data.rating, comment: parsed.data.comment } });
