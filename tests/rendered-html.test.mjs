@@ -1,0 +1,4 @@
+import assert from "node:assert/strict";import {readFile} from "node:fs/promises";import test from "node:test";
+test("journalist UI contains approved copy",async()=>{const page=await readFile(new URL("../app/page.tsx",import.meta.url),"utf8");assert.match(page,/Focus on what matters/);assert.match(page,/without rewriting the copy/);assert.doesNotMatch(page,/THE COACHING CONTRACT/)});
+test("provider settings are absent from journalist page",async()=>{const page=await readFile(new URL("../app/page.tsx",import.meta.url),"utf8");assert.doesNotMatch(page,/Anthropic|OpenAI|model selection|reasoning depth/i)});
+test("archive is not imported into runtime",async()=>{for(const p of ["../app/page.tsx","../app/api/check/route.ts"]){const s=await readFile(new URL(p,import.meta.url),"utf8");assert.doesNotMatch(s,/knowledge\/archive|ACT_V3|Breaking_news/)} });

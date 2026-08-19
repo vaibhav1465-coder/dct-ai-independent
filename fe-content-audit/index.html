@@ -1,0 +1,1200 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>FE Content Audit</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #050509; font-family: 'Inter', system-ui, sans-serif; color: #f4f6fb; }
+  #root { max-width: 980px; margin: 0 auto; padding: 32px 20px 80px; }
+  .login-shell { min-height: 100vh; display: grid; place-items: center; padding: 28px 16px; background: radial-gradient(circle at top right, rgba(73,57,209,0.22), transparent 28%), radial-gradient(circle at left center, rgba(109,136,131,0.18), transparent 25%), #050509; }
+  .login-wrap { width: 100%; max-width: 500px; background: rgba(14, 16, 23, 0.92); border: 1px solid rgba(194, 196, 206, 0.14); border-radius: 22px; padding: 34px; box-shadow: 0 28px 80px rgba(0, 0, 0, 0.38); }
+  .login-kicker { margin: 0 0 10px; color: #8ea0ac; font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+  .dashboard-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin: 18px 0 16px; }
+  .metric-card { background: #10131a; border: 1px solid rgba(194, 196, 206, 0.12); border-radius: 16px; padding: 16px 18px; box-shadow: inset 0 1px 0 rgba(255,255,255,0.02); }
+  .metric-label { margin: 0 0 8px; color: #8ea0ac; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; }
+  .metric-value { margin: 0; color: #f7f9fc; font-size: 26px; line-height: 1.15; font-weight: 700; }
+  .summary-grid { display: grid; grid-template-columns: 1.4fr 1fr; gap: 16px; margin-bottom: 16px; }
+  .hero-panel, .panel, .table-panel { background: #10131a; border: 1px solid rgba(194, 196, 206, 0.12); border-radius: 18px; }
+  .hero-panel { padding: 24px; min-height: 220px; position: relative; overflow: hidden; }
+  .hero-panel:before { content: ""; position: absolute; inset: 0; background: radial-gradient(circle at top right, rgba(73,57,209,0.28), transparent 32%), radial-gradient(circle at bottom left, rgba(109,136,131,0.2), transparent 28%); pointer-events: none; }
+  .hero-inner { position: relative; z-index: 1; }
+  .mini-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .mini-card { background: rgba(255,255,255,0.02); border: 1px solid rgba(194, 196, 206, 0.09); border-radius: 14px; padding: 14px; }
+  .bar-track { height: 8px; border-radius: 999px; background: rgba(255,255,255,0.06); overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 999px; background: linear-gradient(90deg, #4939D1, #6D8883); }
+  .insight-list { display: grid; gap: 10px; margin-top: 12px; }
+  .insight-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; font-size: 13px; color: #c2c4ce; }
+  .toolbar-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .step-label { margin: 0 0 8px; color: #8ea0ac; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; }
+  input[type=text], input[type=number], input[type=password], textarea {
+    border: 1px solid rgba(194, 196, 206, 0.16); border-radius: 12px; padding: 11px 12px; font-family: inherit; font-size: 14px; color: #f7f9fc; background: #0c0f15;
+  }
+  input:focus, textarea:focus, select:focus { outline: 2px solid rgba(73, 57, 209, 0.22); border-color: #4939D1; }
+  select { border: 1px solid rgba(194, 196, 206, 0.16); border-radius: 12px; padding: 11px 12px; font-family: inherit; font-size: 14px; color: #f7f9fc; background: #0c0f15; }
+  textarea { width: 100%; font-family: monospace; font-size: 12px; }
+  button { font-family: inherit; }
+  .page-header, .saved-row, .result-header { display: flex; justify-content: space-between; }
+  .saved-actions { display: flex; gap: 6px; }
+  .article-table { border: 1px solid rgba(194, 196, 206, 0.12); border-radius: 14px; overflow: hidden; background: #0c0f15; }
+  .article-table-header { display: grid; grid-template-columns: 48px 1.8fr .9fr .8fr; gap: 12px; padding: 12px 14px; color: #8ea0ac; font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; border-bottom: 1px solid rgba(194, 196, 206, 0.08); }
+  .article-table-row { display: grid; grid-template-columns: 48px 1.8fr .9fr .8fr; gap: 12px; padding: 12px 14px; border-bottom: 1px solid rgba(194, 196, 206, 0.06); align-items: start; }
+  .article-table-row:last-child { border-bottom: none; }
+  .status-chip { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; }
+  .section-divider { height: 1px; background: rgba(194, 196, 206, 0.1); margin: 16px 0; }
+  @media (max-width: 640px) {
+    #root { padding: 20px 12px 48px; }
+    .login-wrap { padding: 24px; }
+    .dashboard-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .summary-grid, .mini-grid { grid-template-columns: 1fr; }
+    .page-header, .saved-row, .result-header { flex-direction: column; align-items: stretch !important; gap: 12px; }
+    .saved-actions { flex-wrap: wrap; }
+    .saved-actions button { flex: 1; }
+    input, select, textarea { max-width: 100%; }
+    .article-table-header { display: none; }
+    .article-table-row { grid-template-columns: 34px 1fr; }
+  }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel" data-plugins="transform-react-jsx">
+const { useEffect, useRef, useState } = React;
+
+const C = {
+  primary: "#4939D1", onPrimary: "#ffffff", ink: "#f4f6fb", inkMute: "#8ea0ac",
+  linkBlue: "#7eb5ff", canvas: "#10131a", cream: "#0c0f15", lavender: "#171b26",
+  hairline: "rgba(194, 196, 206, 0.12)", error: "#E42B1D", success: "#6D8883",
+  errorTint: "rgba(228, 43, 29, 0.12)", successTint: "rgba(109, 136, 131, 0.14)", warnTint: "rgba(255, 184, 77, 0.12)", warn: "#ffb84d",
+};
+
+const st = {
+  h1: { fontSize: "34px", fontWeight: 700, color: C.ink, margin: "0 0 4px" },
+  subtitle: { fontSize: "16px", color: C.inkMute, margin: "0 0 20px", lineHeight: 1.55 },
+  card: { background: C.canvas, border: `1px solid ${C.hairline}`, borderRadius: "18px", padding: "24px", marginBottom: "16px", boxShadow: "0 18px 40px rgba(0, 0, 0, 0.22)" },
+  cardLavender: { background: C.lavender, border: `1px solid ${C.hairline}`, borderRadius: "18px", padding: "24px", marginBottom: "16px" },
+  stepTitle: { fontSize: "21px", fontWeight: 700, margin: "0 0 4px" },
+  stepDesc: { fontSize: "14px", color: C.inkMute, margin: "0 0 14px", lineHeight: 1.5 },
+  btnPrimary: { background: C.primary, color: C.onPrimary, border: "none", borderRadius: "12px", padding: "13px 24px", fontSize: "15px", fontWeight: 700, cursor: "pointer", boxShadow: "0 12px 28px rgba(73, 57, 209, 0.28)" },
+  btnOutline: { background: "#0c0f15", color: C.ink, border: `1px solid ${C.hairline}`, borderRadius: "12px", padding: "10px 18px", fontSize: "14px", fontWeight: 700, cursor: "pointer" },
+  btnOutlineError: { background: "#0c0f15", color: C.error, border: `1px solid rgba(228, 43, 29, 0.36)`, borderRadius: "12px", padding: "10px 18px", fontSize: "14px", fontWeight: 700, cursor: "pointer" },
+  link: { color: C.linkBlue, textDecoration: "underline", fontSize: "13px", fontFamily: "monospace", wordBreak: "break-all", display: "block" },
+  pillTag: { fontSize: "12px", fontWeight: 700, padding: "7px 14px", borderRadius: "999px", background: "rgba(255,255,255,0.04)", color: C.ink, border: `1px solid ${C.hairline}`, cursor: "pointer" },
+  pillTagActive: { fontSize: "12px", fontWeight: 700, padding: "7px 14px", borderRadius: "10px", background: C.primary, color: C.onPrimary, border: "1px solid transparent", cursor: "pointer" },
+  pillTagBad: { fontSize: "12px", fontWeight: 700, padding: "7px 14px", borderRadius: "999px", background: C.errorTint, color: "#ff8d82", border: "1px solid transparent", cursor: "pointer" },
+  pillTagWarn: { fontSize: "12px", fontWeight: 700, padding: "7px 14px", borderRadius: "999px", background: C.warnTint, color: C.warn, border: "1px solid transparent", cursor: "pointer" },
+  caption: { fontSize: "12px", color: C.inkMute },
+};
+
+const SESSION_KEY = "fe_session_token";
+const SESSION_EXPIRY_KEY = "fe_session_expires";
+const MEMORY_KEY = "fe_saved_analyses";
+const ANALYSIS_INTERVAL_MS = 4200;
+const WP_BASE = "https://www.financialexpress.com/wp-json/wp/v2";
+const PREPROD_SOURCE_BASE = "/api/source";
+const MAX_ARTICLES_PER_REQUEST = 500;
+const MAX_AUTO_PAGES_PER_SEGMENT = 20;
+const MAX_ANALYSIS_ARTICLES = 500;
+const BODY_TEXT_LIMIT = 8000;
+const SOURCE_AUDIT_LIMIT = 5000;
+const RECOMMENDATION_COUNT_OPTIONS = [50, 100, 150, 200, 250, 300, 350, 400, 450, 500];
+const SEGMENT_SCAN_CONCURRENCY = 8;
+const MAX_CONSECUTIVE_UPSTREAM_ERRORS = 3;
+const FE_SEGMENT_ENDPOINTS = {};
+const AI_PROVIDER_OPTIONS = {
+  anthropic: [
+    { value: "claude-haiku-4-5-20251001", label: "Claude Haiku 4.5 - lower cost" },
+    { value: "claude-sonnet-5", label: "Claude Sonnet 5 - higher quality" },
+  ],
+  openai: [
+    { value: "gpt-5.6-luna", label: "GPT-5.6 Luna - lower cost" },
+    { value: "gpt-5.6-terra", label: "GPT-5.6 Terra - balanced" },
+    { value: "gpt-4.1", label: "GPT-4.1 - stable general model" },
+  ],
+};
+
+function getStoredSession() {
+  const token = sessionStorage.getItem(SESSION_KEY);
+  const expiresAt = Number(sessionStorage.getItem(SESSION_EXPIRY_KEY) || 0);
+  if (!token || Date.now() > expiresAt) return null;
+  return token;
+}
+function storeSession(token, expiresAt) {
+  sessionStorage.setItem(SESSION_KEY, token);
+  sessionStorage.setItem(SESSION_EXPIRY_KEY, String(expiresAt));
+}
+function clearSession() {
+  sessionStorage.removeItem(SESSION_KEY);
+  sessionStorage.removeItem(SESSION_EXPIRY_KEY);
+}
+
+function getSavedAnalyses() {
+  try { return JSON.parse(localStorage.getItem(MEMORY_KEY) || "[]"); } catch (e) { return []; }
+}
+function addSavedAnalysis(entry) {
+  const list = getSavedAnalyses();
+  list.unshift(entry);
+  localStorage.setItem(MEMORY_KEY, JSON.stringify(list.slice(0, 50)));
+}
+function deleteSavedAnalysis(timestamp) {
+  const list = getSavedAnalyses().filter((e) => e.timestamp !== timestamp);
+  localStorage.setItem(MEMORY_KEY, JSON.stringify(list));
+}
+
+async function login(password) {
+  const res = await fetch("/api/auth", {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ password }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Login failed");
+  storeSession(data.token, data.expiresAt);
+}
+
+async function callAnalyzeApi(article, mode, costProfile, aiProvider, aiModel) {
+  const token = getStoredSession();
+  if (!token) throw new Error("Session expired. Please log in again.");
+  const response = await fetch("/api/analyze", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ article, mode, cost_profile: costProfile, ai_provider: aiProvider, ai_model: aiModel }),
+  });
+  if (response.status === 401) { clearSession(); throw new Error("Session expired. Please log in again."); }
+  if (!response.ok) {
+    const errBody = await response.json().catch(() => ({}));
+    const detail = errBody.detail ? ` - ${errBody.detail}` : "";
+    throw new Error((errBody.error || `Request failed with status ${response.status}`) + detail);
+  }
+  return response.json();
+}
+
+function getAuthHeaders() {
+  const token = getStoredSession();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+function buildSourceApiUrl(kind, params = {}) {
+  const search = new URLSearchParams({ kind });
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && String(value).trim() !== "") {
+      search.set(key, String(value));
+    }
+  });
+  return `${PREPROD_SOURCE_BASE}?${search.toString()}`;
+}
+
+async function fetchWpJson(url) {
+  const response = await fetch(url, { headers: getAuthHeaders() });
+  const text = await response.text();
+  let parsed;
+  try { parsed = text ? JSON.parse(text) : null; }
+  catch (e) { throw new Error("The source API returned unreadable JSON."); }
+  if (!response.ok) {
+    const wpError = detectWpRestError(parsed);
+    throw new Error(wpError ? `${wpError.status} ${wpError.code.replace(/_/g, " ")}` : `HTTP ${response.status}`);
+  }
+  return parsed;
+}
+
+function wait(ms) { return new Promise((resolve) => window.setTimeout(resolve, ms)); }
+
+function detectWpRestError(parsed) {
+  if (parsed && typeof parsed === "object" && parsed.code && parsed.data?.status) {
+    return { status: parsed.data.status, code: parsed.code };
+  }
+  return null;
+}
+
+function clampArticlesPerPage(value) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return 50;
+  return Math.max(1, Math.min(MAX_ARTICLES_PER_REQUEST, Math.floor(parsed)));
+}
+
+function getDefaultModelForProvider(provider, costProfile) {
+  const options = AI_PROVIDER_OPTIONS[provider] || AI_PROVIDER_OPTIONS.anthropic;
+  return costProfile === "standard" ? (options[1]?.value || options[0].value) : options[0].value;
+}
+
+function clampRecommendationLimit(value, total) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return Math.min(50, total || 50);
+  return Math.max(1, Math.min(total || parsed, parsed));
+}
+
+function toUserMessage(message, fallback = "Something went wrong. Please try again.") {
+  const text = String(message || "").trim();
+  if (!text) return fallback;
+  if (/session expired/i.test(text)) return "Your session expired. Please log in again.";
+  if (/rate limit exceeded/i.test(text)) return "Too many requests were sent in a short time. Please wait a minute and try again.";
+  if (/daily request cap/i.test(text)) return "Today's analysis limit has been reached. Please try again later.";
+  if (/configured anthropic model is not available/i.test(text)) return "The selected Claude model is not available right now. Choose another model and try again.";
+  if (/source api returned unreadable json/i.test(text)) return "This source did not return usable page data for the selected URL.";
+  if (/could not parse model output/i.test(text)) return "The selected model returned an unusable response for this page. Please retry.";
+  if (/analysis response was incomplete or not grounded/i.test(text)) return "The analysis could not finish cleanly for this page. Please retry.";
+  if (/required audit format/i.test(text) || /shaped into the required audit format/i.test(text)) return "This page could not be converted into the required audit format in this run. Please retry the page.";
+  if (/took too long for this run/i.test(text)) return "This page took too long to analyse in this run. Retry the page or run a smaller batch.";
+  if (/upstream api error/i.test(text)) return "The analysis provider is not responding correctly right now. Please retry.";
+  if (/server misconfigured/i.test(text)) return "The analysis service is not fully configured right now.";
+  if (/internal error/i.test(text)) return "The analysis service hit an internal error. Please retry.";
+  if (/missing authorization header|malformed token/i.test(text)) return "Please use this inside the FE Content Audit app after logging in.";
+  if (/http 4\d\d/i.test(text)) return "The requested content could not be loaded for this selection.";
+  if (/http 5\d\d/i.test(text)) return "The content service is temporarily unavailable. Please retry.";
+  return text;
+}
+
+function buildArticleUrl(categoryId, selectedMonthValue, perPage, page) {
+  const { after, before } = getMonthRange(selectedMonthValue);
+  return buildSourceApiUrl("posts", {
+    categories: String(categoryId),
+    after,
+    before,
+    per_page: String(clampArticlesPerPage(perPage)),
+    page: String(page),
+    orderby: "date",
+    order: "desc",
+  });
+}
+
+function buildLatestFeedUrl(perPage) {
+  return `${WP_BASE}/category/latest/100/${clampArticlesPerPage(perPage)}`;
+}
+
+async function fetchJsonWithMeta(url) {
+  const response = await fetch(url, { headers: getAuthHeaders() });
+  const text = await response.text();
+  let parsed;
+  try { parsed = text ? JSON.parse(text) : null; }
+  catch (e) { throw new Error("The source API returned unreadable JSON."); }
+  if (!response.ok) {
+    const wpError = detectWpRestError(parsed);
+    throw new Error(wpError ? `${wpError.status} ${wpError.code.replace(/_/g, " ")}` : `HTTP ${response.status}`);
+  }
+  return {
+    data: parsed,
+    total: Number(response.headers.get("X-WP-Total") || 0),
+    totalPages: Number(response.headers.get("X-WP-TotalPages") || 1),
+  };
+}
+
+function formatDate(dateStr) {
+  if (!dateStr) return "no date";
+  const d = new Date(dateStr.replace(" ", "T"));
+  if (isNaN(d.getTime())) return dateStr;
+  return d.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" }) + ", " + d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+}
+
+function stripHtml(value) {
+  const element = document.createElement("textarea");
+  element.innerHTML = String(value || "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+  return element.value;
+}
+
+function formatByline(value) {
+  return String(value || "").replace(/^cap-/, "").split("-").filter(Boolean).map((part) => part.toLowerCase() === "fe" ? "FE" : part.charAt(0).toUpperCase() + part.slice(1)).join(" ");
+}
+
+async function resolveBylines(articles) {
+  const ids = [...new Set(articles.flatMap((article) => article._coauthorIds || []))];
+  if (!ids.length) return articles;
+  try {
+    const response = await fetch(buildSourceApiUrl("coauthors", { include: ids.join(","), per_page: 100 }), { headers: getAuthHeaders() });
+    if (!response.ok) return articles;
+    const authors = await response.json();
+    const names = Object.fromEntries(authors.map((author) => [String(author.id), formatByline(author.name || author.slug)]));
+    return articles.map((article) => ({ ...article, byline: (article._coauthorIds || []).map((id) => names[String(id)]).filter(Boolean).join(", ") || article.byline }));
+  } catch { return articles; }
+}
+
+function getMonthOptions() {
+  const now = new Date();
+  const first = new Date(now.getFullYear() - 1, 0, 1);
+  const options = [{ value: "last-12-months", label: "Last 12 months" }];
+  for (const date = new Date(now.getFullYear(), now.getMonth(), 1); date >= first; date.setMonth(date.getMonth() - 1)) {
+    options.push({ value: `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`, label: date.toLocaleDateString("en-GB", { month: "long", year: "numeric" }) });
+  }
+  return options;
+}
+
+function getMonthRange(value) {
+  if (value === "last-12-months") {
+    const now = new Date();
+    return {
+      after: new Date(Date.UTC(now.getFullYear(), now.getMonth() - 11, 1)).toISOString(),
+      before: new Date(Date.UTC(now.getFullYear(), now.getMonth() + 1, 1)).toISOString(),
+    };
+  }
+  const [year, month] = value.split("-").map(Number);
+  const start = new Date(Date.UTC(year, month - 1, 1));
+  const end = new Date(Date.UTC(year, month, 1));
+  return { after: start.toISOString(), before: end.toISOString() };
+}
+
+function normalizeArticles(raw, segment) {
+  try {
+    if (Array.isArray(raw)) {
+      return raw.map((it) => ({
+        id: String(it.id), headline: stripHtml(it.title?.rendered), subheading: stripHtml(it.excerpt?.rendered),
+        byline: formatByline(it.class_list?.find((item) => item.startsWith("author-"))?.slice(7)), _coauthorIds: it.coauthors || [], publish_date: it.date,
+        body_text: stripHtml(it.content?.rendered), url: it.link, segment, category_ids: it.categories || [], category_slugs: [],
+      }));
+    }
+    if (Array.isArray(raw?.list?.[0]?.items)) {
+      return raw.list[0].items.map((it) => ({
+        id: String(it.id), headline: stripHtml(it.headline || it.title), subheading: stripHtml(it.introduction),
+        byline: (it.byline || []).map((b) => b.name).join(", "), publish_date: it.post_date,
+        body_text: stripHtml(it.body_raw || it.body), url: it.post_url, segment,
+        category_ids: (it.categories || []).map((category) => Number(category.id)),
+        category_slugs: (it.categories || []).map((category) => String(category.slug || "")),
+      }));
+    }
+  } catch (e) { return []; }
+  return [];
+}
+
+async function fetchLatestFallbackArticles(segmentSlug, categoryId, selectedMonthValue, perPage) {
+  const raw = await fetchWpJson(buildLatestFeedUrl(Math.max(perPage, 100)));
+  const { after, before } = getMonthRange(selectedMonthValue);
+  const filtered = normalizeArticles(raw, segmentSlug).filter((article) => {
+    const published = new Date(String(article.publish_date).replace(" ", "T"));
+    const inDateRange = !Number.isNaN(published.getTime()) && published >= new Date(after) && published < new Date(before);
+    const inSegment = article.category_ids?.includes(Number(categoryId)) || article.category_slugs?.includes(segmentSlug);
+    return inDateRange && inSegment;
+  }).slice(0, clampArticlesPerPage(perPage));
+  return resolveBylines(filtered);
+}
+
+async function fetchSegmentFeedArticles(segmentSlug, selectedMonthValue, perPage, offset = 0) {
+  return [];
+}
+
+async function checkSegmentAvailability(segmentSlug, categoryId, selectedMonthValue) {
+  try {
+    const result = await fetchJsonWithMeta(buildArticleUrl(categoryId, selectedMonthValue, 1, 1));
+    if (Array.isArray(result.data) && result.data.length > 0) {
+      return { type: "ready", reason: "" };
+    }
+    if (result.total > 0) {
+      return { type: "ready", reason: "" };
+    }
+  } catch (apiError) {
+    if (/unreadable json/i.test(apiError.message)) {
+      return { type: "unsupported", reason: "This segment is returning HTML or unreadable JSON for the selected month." };
+    }
+    try {
+      const fallbackArticles = await fetchLatestFallbackArticles(segmentSlug, categoryId, selectedMonthValue, 1);
+      if (fallbackArticles.length > 0) {
+        return { type: "ready", reason: "" };
+      }
+      return { type: "empty", reason: "No pages were found for this month and segment." };
+    } catch (fallbackError) {
+      const message = /unreadable json/i.test(fallbackError.message)
+        ? "This segment did not return usable page data for the selected month."
+        : "This segment could not be loaded from the current source for the selected month.";
+      return { type: "unsupported", reason: message };
+    }
+  }
+  return { type: "empty", reason: "No pages were found for this month and segment." };
+}
+
+function textContainsAny(text, patterns) {
+  const normalized = String(text || "").toLowerCase();
+  return patterns.some((pattern) => normalized.includes(pattern));
+}
+
+function countMatches(text, regex) {
+  return (String(text || "").match(regex) || []).length;
+}
+
+function buildSourceOnlyResult(article) {
+  const bodyText = String(article.body_text || "").slice(0, BODY_TEXT_LIMIT);
+  const bodyLower = bodyText.toLowerCase();
+  const wordCount = bodyText.trim() ? bodyText.trim().split(/\s+/).length : 0;
+  const hasByline = Boolean(String(article.byline || "").trim());
+  const sourceSignals = countMatches(bodyText, /https?:\/\/|according to|said|told|data|report|survey|filing|statement|exchange|ministry|rbi|sebi|nse|bse/gi);
+  const expertSignals = countMatches(bodyText, /said|told|according to|analyst|expert|economist|official|spokesperson|ceo|cfo|md|founder|research head/gi);
+  const headings = countMatches(bodyText, /\n[A-Z][^\n]{10,90}\n/g);
+  const findings = [];
+
+  if (!hasByline) {
+    findings.push({
+      severity: "yellow",
+      issue_name: "Byline unavailable",
+      evidence: article.headline || "Article headline",
+      what_is_wrong: "The source data does not provide a clear byline for this article.",
+      why_it_hurts: "Readers and editors have less context about accountability and expertise.",
+      fix: "Confirm the author/byline in the CMS and add a named byline where appropriate.",
+      optimization_steps: ["Check the CMS author field.", "Add or correct the visible byline.", "Link to an author profile when available."],
+      expected_improvement: "A clear byline improves transparency and editorial trust.",
+    });
+  }
+
+  if (wordCount < 300) {
+    findings.push({
+      severity: "red",
+      issue_name: "Thin article body",
+      evidence: bodyText.slice(0, 90) || article.headline || "Article body",
+      what_is_wrong: `The article has about ${wordCount} words, which may not give readers enough useful context.`,
+      why_it_hurts: "Thin pages often fail to answer follow-up reader questions.",
+      fix: "Expand the article with concrete context, data, and next-step explanation.",
+      optimization_steps: ["Add the key background in simple language.", "Explain why the update matters now.", "Add one useful data point or source."],
+      expected_improvement: "More complete context can make the page more useful for readers.",
+    });
+  }
+
+  if (sourceSignals < 2) {
+    findings.push({
+      severity: "yellow",
+      issue_name: "Weak sourcing signals",
+      evidence: bodyText.slice(0, 90) || article.headline || "Article body",
+      what_is_wrong: "The article has limited visible source, data, or attribution signals.",
+      why_it_hurts: "YMYL and business content needs clear support for important claims.",
+      fix: "Add named sources, official data, or document links for the main claims.",
+      optimization_steps: ["Identify the main factual claim.", "Add the primary source or official data point.", "Attribute important claims to named people or institutions."],
+      expected_improvement: "Better sourcing makes the article easier to trust and verify.",
+    });
+  }
+
+  if (expertSignals < 1 && textContainsAny(bodyLower, ["tax", "loan", "investment", "insurance", "health", "stock", "market", "policy", "rbi", "sebi"])) {
+    findings.push({
+      severity: "yellow",
+      issue_name: "No expert context detected",
+      evidence: article.headline || bodyText.slice(0, 90) || "Article headline",
+      what_is_wrong: "The article appears to cover a high-impact topic without clear expert explanation.",
+      why_it_hurts: "Readers may need qualified context before acting on the information.",
+      fix: "Add a short expert quote or editor explanation that clarifies what readers should take away.",
+      optimization_steps: ["Ask a qualified expert for one practical quote.", "Explain the reader impact in plain language.", "Avoid direct advice unless it is properly qualified."],
+      expected_improvement: "Expert context can make the article safer and more helpful.",
+    });
+  }
+
+  if (headings < 1 && wordCount > 600) {
+    findings.push({
+      severity: "yellow",
+      issue_name: "Needs clearer structure",
+      evidence: bodyText.slice(0, 90) || article.headline || "Article body",
+      what_is_wrong: "The article is long enough to benefit from clearer sectioning.",
+      why_it_hurts: "Readers may miss the main points when the page is hard to scan.",
+      fix: "Add short, descriptive subheadings around the main reader questions.",
+      optimization_steps: ["Group related paragraphs together.", "Add one subheading for context.", "Add one subheading for reader impact or next steps."],
+      expected_improvement: "Clearer structure helps readers scan and understand the content faster.",
+    });
+  }
+
+  const finalFindings = findings.slice(0, 2);
+  return {
+    overall_health: finalFindings.some((f) => f.severity === "red") ? "Weak" : finalFindings.length ? "Needs Work" : "Strong",
+    findings: finalFindings,
+    bottom_line: finalFindings.length ? "Prioritise the listed source-data fixes before deeper editorial review." : "No obvious source-data issue was detected in the article fields.",
+    source_audit: true,
+    word_count: wordCount,
+    source_signals: sourceSignals,
+    expert_signals: expertSignals,
+    _usage: { input_tokens: 0, output_tokens: 0 },
+  };
+}
+
+function buildClientFallbackResult(article, mode, message, aiProvider, aiModel, costProfile) {
+  const base = buildSourceOnlyResult(article);
+  const reviewNote = toUserMessage(message, "The selected model did not return a usable recommendation for this page, so the product used its built-in review rules.");
+  const topFinding = base.findings?.[0];
+
+  if (mode === "hcs") {
+    return {
+      verdict: base.overall_health === "Strong" ? "Healthy" : base.overall_health === "Needs Work" ? "Borderline" : "Dead Weight",
+      information_gain_score: Math.max(2, Math.min(5, Math.round((base.word_count || 250) >= 700 ? 4 : (base.word_count || 250) >= 400 ? 3 : 2))),
+      experience_score: Math.max(2, Math.min(5, base.experience || 2)),
+      trust_score: Math.max(2, Math.min(5, base.trustworthiness || 2)),
+      spam_risk: (base.word_count || 0) < 350 ? "thin-content" : "none",
+      findings: (base.findings || []).map((finding, index) => index === 0 ? {
+        ...finding,
+        what_is_wrong: reviewNote,
+      } : finding),
+      bottom_line: topFinding ? "This page still needs manual review before any SEO or editorial action is finalised." : reviewNote,
+      _fallback: true,
+      _client_fallback: true,
+      _fallback_reason: reviewNote,
+      _provider: aiProvider,
+      _model: aiModel,
+      _cost_profile: costProfile,
+      _usage: { input_tokens: 0, output_tokens: 0 },
+    };
+  }
+
+  return {
+    ...base,
+    findings: (base.findings || []).map((finding, index) => index === 0 ? {
+      ...finding,
+      what_is_wrong: reviewNote,
+    } : finding),
+    bottom_line: topFinding ? "This page still needs manual review before any SEO or editorial action is finalised." : reviewNote,
+    flagged_guidelines: ["G1", "G2", "G3"],
+    _fallback: true,
+    _client_fallback: true,
+    _fallback_reason: reviewNote,
+    _provider: aiProvider,
+    _model: aiModel,
+    _cost_profile: costProfile,
+    _usage: { input_tokens: 0, output_tokens: 0 },
+  };
+}
+
+function getStatusCounts(statusMap) {
+  const values = Object.values(statusMap || {});
+  return {
+    ready: values.filter((entry) => entry.type === "ok" || entry.type === "idle" || entry.type === "end-of-range").length,
+    empty: values.filter((entry) => entry.type === "empty").length,
+    unsupported: values.filter((entry) => entry.type === "unsupported").length,
+  };
+}
+
+function extractUrlFromRow(parts) {
+  return parts.find((part) => /^https?:\/\//i.test(String(part || "").trim())) || "";
+}
+
+function guessSegmentFromUrl(url) {
+  try {
+    const parsed = new URL(url);
+    const pathParts = parsed.pathname.split("/").filter(Boolean);
+    return pathParts[0] || "imported-urls";
+  } catch (e) {
+    return "imported-urls";
+  }
+}
+
+function parseImportedUrlText(text) {
+  const lines = String(text || "").split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  if (!lines.length) return [];
+  const firstParts = lines[0].split(/\t|,/).map((part) => part.trim());
+  const hasHeader = firstParts.some((part) => /url/i.test(part));
+  const headerMap = hasHeader ? Object.fromEntries(firstParts.map((part, index) => [part.toLowerCase(), index])) : {};
+  const rows = hasHeader ? lines.slice(1) : lines;
+  return rows.map((line) => {
+    if (/^https?:\/\//i.test(line)) return { url: line };
+    const parts = line.split(/\t|,/).map((part) => part.trim());
+    if (headerMap.url !== undefined) {
+      return { url: parts[headerMap.url] || "" };
+    }
+    const url = extractUrlFromRow(parts);
+    return { url };
+  }).filter((row) => row.url);
+}
+
+function canonicalizeProductionUrl(candidateUrl, fallbackUrl) {
+  const preferred = String(fallbackUrl || "").trim();
+  if (preferred) return preferred;
+  const raw = String(candidateUrl || "").trim();
+  if (!raw) return preferred;
+  try {
+    const parsed = new URL(raw);
+    if (/preprod\.financialexpress\.com$/i.test(parsed.hostname)) {
+      return `https://www.financialexpress.com${parsed.pathname}${parsed.search}${parsed.hash}`;
+    }
+    return parsed.toString();
+  } catch (e) {
+    return preferred || raw;
+  }
+}
+
+function normalizeImportedArticle(article, preferredSegment, sourceUrl) {
+  const normalized = normalizeArticles([article], preferredSegment || guessSegmentFromUrl(sourceUrl))[0];
+  return normalized ? {
+    ...normalized,
+    segment: preferredSegment || normalized.segment || guessSegmentFromUrl(sourceUrl),
+    url: canonicalizeProductionUrl(normalized.url, sourceUrl),
+  } : null;
+}
+
+async function fetchImportedArticleByUrl(url, preferredSegment) {
+  let parsedUrl;
+  try {
+    parsedUrl = new URL(url);
+  } catch (e) {
+    throw new Error(`Invalid URL: ${url}`);
+  }
+  if (!/financialexpress\.com$/i.test(parsedUrl.hostname)) {
+    throw new Error("Only Financial Express article URLs are supported right now.");
+  }
+
+  const path = parsedUrl.pathname.replace(/\/+$/, "");
+  const postId = path.match(/-(\d+)$/)?.[1] || path.match(/\/(\d+)$/)?.[1];
+  if (postId) {
+    const article = await fetchWpJson(buildSourceApiUrl("post", { id: postId }));
+    return normalizeImportedArticle(article, preferredSegment, url);
+  }
+
+  const slug = path.split("/").filter(Boolean).pop() || "";
+  if (!slug) throw new Error(`Could not detect a post from URL: ${url}`);
+  const matches = await fetchWpJson(buildSourceApiUrl("posts", { slug }));
+  if (!Array.isArray(matches) || !matches.length) throw new Error(`No FE article was found for URL: ${url}`);
+  return normalizeImportedArticle(matches[0], preferredSegment, url);
+}
+
+function downloadCsv(rows, filename) {
+  const esc = (v) => { const s = String(v ?? ""); return s.includes(",") || s.includes('"') || s.includes("\n") ? `"${s.replace(/"/g, '""')}"` : s; };
+  const header = ["segment", "headline", "url", "byline", "publish_date", "verdict", "top_finding", "evidence", "why_it_hurts", "fix", "optimization_steps", "expected_improvement", "ymyl_score", "experience", "expertise", "authoritativeness", "trustworthiness", "information_gain_score", "spam_risk"];
+  const lines = [header.join(",")];
+  rows.forEach((r) => lines.push(header.map((h) => esc(r[h])).join(",")));
+  const blob = new Blob([lines.join("\n")], { type: "text/csv" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function LoginScreen({ onSuccess }) {
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    setError(""); setLoading(true);
+    try { await login(password); onSuccess(); }
+    catch (err) { setError(err.message); }
+    setLoading(false);
+  }
+
+  return (
+    <div className="login-shell">
+    <div className="login-wrap">
+      <p className="login-kicker">SEO workflow</p>
+      <h1 style={{ ...st.h1, marginBottom: "8px" }}>FE Content Audit</h1>
+      <p style={{ ...st.subtitle, marginBottom: "10px" }}>Built for SEO-first content reviews, with editorial follow-up kept simple and action-led.</p>
+      <div className="mini-grid" style={{ marginBottom: "24px" }}>
+        <div className="mini-card">
+          <p className="metric-label">Primary use</p>
+          <p style={{ margin: 0, fontSize: "14px", lineHeight: 1.5, color: C.ink }}>Find pages that need content improvements, stronger proof, and cleaner optimization follow-up.</p>
+        </div>
+        <div className="mini-card">
+          <p className="metric-label">What you get</p>
+          <p style={{ margin: 0, fontSize: "14px", lineHeight: 1.5, color: C.ink }}>Direct FE URL imports, spreadsheet upload support, and deep page-level audits in one review format.</p>
+        </div>
+      </div>
+      <form onSubmit={handleSubmit}>
+        <label style={{ display: "block", textAlign: "left", fontSize: "13px", fontWeight: 700, marginBottom: "8px" }}>Team password</label>
+        <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} autoFocus style={{ width: "100%", marginBottom: "12px" }} />
+        <button style={{ ...st.btnPrimary, width: "100%" }} type="submit" disabled={loading}>{loading ? "Checking..." : "Log in"}</button>
+      </form>
+      {error && <p style={{ color: C.error, fontSize: "13px", marginTop: "10px" }}>{error}</p>}
+    </div>
+    </div>
+  );
+}
+
+function AuditWorkspace() {
+  const [authed, setAuthed] = useState(() => !!getStoredSession());
+  const [segmentArticles, setSegmentArticles] = useState({});
+  const [loadMsg, setLoadMsg] = useState("");
+  const [results, setResults] = useState({});
+  const [analyzing, setAnalyzing] = useState(false);
+  const [loadingArticles, setLoadingArticles] = useState(false);
+  const [progress, setProgress] = useState("");
+  const [aiProvider, setAiProvider] = useState("anthropic");
+  const [aiModel, setAiModel] = useState(AI_PROVIDER_OPTIONS.anthropic[1]?.value || AI_PROVIDER_OPTIONS.anthropic[0].value);
+  const [costProfile, setCostProfile] = useState("standard");
+  const [selectedArticleIds, setSelectedArticleIds] = useState({});
+  const [recommendationLimit, setRecommendationLimit] = useState(50);
+  const [savedAnalyses, setSavedAnalyses] = useState(getSavedAnalyses());
+  const [savedMsg, setSavedMsg] = useState("");
+  const [importUrlsText, setImportUrlsText] = useState("");
+  const [importFileName, setImportFileName] = useState("");
+  const [analysisNotice, setAnalysisNotice] = useState("");
+  const stopAnalysisRef = useRef(false);
+
+  function changeAiProvider(provider) {
+    setAiProvider(provider);
+    setAiModel(getDefaultModelForProvider(provider, costProfile));
+  }
+
+  function changeCostProfile(profile) {
+    setCostProfile(profile);
+    setAiModel(getDefaultModelForProvider(aiProvider, profile));
+  }
+
+  function toggleArticleSelection(articleId, checked) {
+    setSelectedArticleIds((prev) => {
+      const next = { ...prev };
+      if (checked) next[articleId] = true;
+      else delete next[articleId];
+      return next;
+    });
+  }
+
+  function selectAllLoadedArticles(limit) {
+    const allArticles = Object.values(segmentArticles).flat().slice(0, limit);
+    setSelectedArticleIds(Object.fromEntries(allArticles.map((article) => [article.id, true])));
+  }
+
+  async function handleImportFile(event) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setImportFileName(file.name);
+    const lowerName = String(file.name || "").toLowerCase();
+    if (lowerName.endsWith(".xlsx") || lowerName.endsWith(".xls")) {
+      try {
+        if (!window.XLSX) throw new Error("Excel support is not available in this browser session.");
+        const workbook = window.XLSX.read(await file.arrayBuffer(), { type: "array" });
+        const firstSheetName = workbook.SheetNames?.[0];
+        if (!firstSheetName) throw new Error("The Excel file does not contain a readable sheet.");
+        const sheet = workbook.Sheets[firstSheetName];
+        const csv = window.XLSX.utils.sheet_to_csv(sheet, { blankrows: false });
+        setImportUrlsText(csv);
+        setLoadMsg(`Loaded ${file.name}. Review the extracted rows below, then click "Import FE URLs".`);
+      } catch (error) {
+        setImportUrlsText("");
+        setLoadMsg(toUserMessage(error.message, "This Excel file could not be read. Please upload a CSV or TSV instead."));
+      }
+      return;
+    }
+    const text = await file.text();
+    setImportUrlsText(text);
+    setLoadMsg(`Loaded ${file.name}. Review the URLs below, then click "Import FE URLs".`);
+  }
+
+  async function importOwnUrls() {
+    const rows = parseImportedUrlText(importUrlsText);
+    if (!rows.length) {
+      setLoadMsg("Add one FE URL per line, or upload a file with a `url` column.");
+      return;
+    }
+    setLoadingArticles(true);
+    setAnalysisNotice("");
+    const imported = [];
+    try {
+      for (let i = 0; i < rows.length; i++) {
+        setProgress(`Importing ${i + 1} of ${rows.length} URLs...`);
+        const article = await fetchImportedArticleByUrl(rows[i].url, "");
+        if (article) imported.push({ ...article, segment: "uploaded-fe-urls" });
+      }
+    } catch (error) {
+      setLoadingArticles(false);
+      setProgress("");
+      setLoadMsg(toUserMessage(error.message, "The imported URLs could not be loaded."));
+      return;
+    }
+
+    const uniqueImported = [];
+    const seen = new Set();
+    imported.forEach((article) => {
+      if (!seen.has(article.id)) {
+        seen.add(article.id);
+        uniqueImported.push(article);
+      }
+    });
+    setSegmentArticles({ "uploaded-fe-urls": uniqueImported });
+    setSelectedArticleIds(Object.fromEntries(uniqueImported.map((article) => [article.id, true])));
+    setResults({});
+    setLoadMsg(`Imported ${uniqueImported.length} FE article URLs from ${importFileName || "the pasted list"}. They are ready for audit.`);
+    setProgress("");
+    setLoadingArticles(false);
+    window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
+  }
+
+  const totalArticles = Object.values(segmentArticles).flat().length;
+  const allLoadedArticles = Object.values(segmentArticles).flat();
+  const selectedArticles = allLoadedArticles.filter((article) => selectedArticleIds[article.id]);
+  const recommendationCap = clampRecommendationLimit(recommendationLimit, totalArticles || 50);
+  const selectedRecommendationArticles = selectedArticles.slice(0, recommendationCap);
+  const resultEntries = Object.entries(results);
+
+  async function analyzeAll() {
+    const allArticles = selectedRecommendationArticles;
+    if (!allArticles.length) {
+      setLoadMsg("Select at least one page before running the audit.");
+      return;
+    }
+    if (allArticles.length > MAX_ANALYSIS_ARTICLES) {
+      setLoadMsg(`This run has ${allArticles.length} articles. Reduce it to ${MAX_ANALYSIS_ARTICLES} or fewer before analysing.`);
+      return;
+    }
+    stopAnalysisRef.current = false;
+    setAnalysisNotice("");
+    setAnalyzing(true);
+    const newResults = {};
+    let consecutiveUpstreamErrors = 0;
+    for (let i = 0; i < allArticles.length; i++) {
+      if (stopAnalysisRef.current) {
+        setAnalysisNotice(`Analysis stopped after ${i} of ${allArticles.length} pages.`);
+        break;
+      }
+      setProgress(`Analyzing ${i + 1} of ${allArticles.length}...`);
+      const requestStarted = Date.now();
+      try {
+        newResults[allArticles[i].id] = await callAnalyzeApi(allArticles[i], "framework", costProfile, aiProvider, aiModel);
+        consecutiveUpstreamErrors = 0;
+      } catch (e) {
+        const message = String(e.message || e);
+        const isUpstream = /Analysis request failed|Upstream API error|Rate limit exceeded|Server misconfigured|Daily request cap reached/i.test(message);
+        newResults[allArticles[i].id] = { _failed: true, error: toUserMessage(message, "The audit could not be completed for this page.") };
+        consecutiveUpstreamErrors = isUpstream ? consecutiveUpstreamErrors + 1 : 0;
+        if (consecutiveUpstreamErrors >= MAX_CONSECUTIVE_UPSTREAM_ERRORS) {
+          setResults({ ...newResults });
+          setAnalysisNotice(`Analysis stopped automatically after ${consecutiveUpstreamErrors} consecutive model failures. Fix the provider issue, then retry the failed pages.`);
+          break;
+        }
+      }
+      setResults({ ...newResults });
+      if (i < allArticles.length - 1) await wait(Math.max(0, ANALYSIS_INTERVAL_MS - (Date.now() - requestStarted)));
+    }
+    setProgress("");
+    setAnalyzing(false);
+  }
+
+  async function retryFailed() {
+    stopAnalysisRef.current = false;
+    setAnalysisNotice("");
+    setAnalyzing(true);
+    const allArticles = selectedRecommendationArticles;
+    const failedIds = Object.entries(results).filter(([, r]) => r._failed).map(([id]) => id);
+    const toRetry = allArticles.filter((a) => failedIds.includes(a.id));
+    const newResults = { ...results };
+    let consecutiveUpstreamErrors = 0;
+    for (let i = 0; i < toRetry.length; i++) {
+      if (stopAnalysisRef.current) {
+        setAnalysisNotice(`Retry stopped after ${i} of ${toRetry.length} pages.`);
+        break;
+      }
+      setProgress(`Retrying ${i + 1} of ${toRetry.length}...`);
+      const requestStarted = Date.now();
+      try {
+        newResults[toRetry[i].id] = await callAnalyzeApi(toRetry[i], "framework", costProfile, aiProvider, aiModel);
+        consecutiveUpstreamErrors = 0;
+      } catch (e) {
+        const message = String(e.message || e);
+        const isUpstream = /Analysis request failed|Upstream API error|Rate limit exceeded|Server misconfigured|Daily request cap reached/i.test(message);
+        newResults[toRetry[i].id] = { _failed: true, error: toUserMessage(message, "The audit could not be completed for this page.") };
+        consecutiveUpstreamErrors = isUpstream ? consecutiveUpstreamErrors + 1 : 0;
+        if (consecutiveUpstreamErrors >= MAX_CONSECUTIVE_UPSTREAM_ERRORS) {
+          setResults({ ...newResults });
+          setAnalysisNotice(`Retry stopped automatically after ${consecutiveUpstreamErrors} consecutive model failures.`);
+          break;
+        }
+      }
+      setResults({ ...newResults });
+      if (i < toRetry.length - 1) await wait(Math.max(0, ANALYSIS_INTERVAL_MS - (Date.now() - requestStarted)));
+    }
+    setProgress("");
+    setAnalyzing(false);
+  }
+
+  function stopAnalysis() {
+    stopAnalysisRef.current = true;
+    setProgress("Stopping after the current request finishes...");
+  }
+
+  function buildCsvRows() {
+    const allArticles = Object.values(segmentArticles).flat();
+    return Object.entries(results).map(([id, r]) => {
+      const a = allArticles.find((x) => x.id === id);
+      return {
+        segment: a?.segment,
+        headline: a?.headline,
+        url: a?.url,
+        byline: a?.byline,
+        publish_date: a?.publish_date,
+        verdict: r.action_tag || r.page_classification || (r._failed ? "Retry" : ""),
+        top_finding: r.findings?.[0]?.issue || r.error || "",
+        evidence: r.findings?.[0]?.evidence || "",
+        why_it_hurts: r.findings?.[0]?.impact || r.executive_summary || r.error || "",
+        fix: r.findings?.[0]?.fix || "",
+        optimization_steps: r.next_steps?.join(" | ") || "",
+        expected_improvement: "",
+        ymyl_score: r.tier || "",
+        experience: r.confidence || "",
+        expertise: r.findings?.filter((item) => item.area === "Trust").map((item) => item.issue).join(" | ") || "",
+        authoritativeness: r.editorial_flag || "",
+        trustworthiness: "",
+        information_gain_score: r.findings?.filter((item) => item.area === "Helpfulness").map((item) => item.issue).join(" | ") || "",
+        spam_risk: r.findings?.filter((item) => item.area === "Spam Risk").map((item) => item.issue).join(" | ") || "",
+        word_count: "",
+        source_signals: r.data_availability || "",
+        expert_signals: r.action_tag || "",
+        input_tokens: r._usage?.input_tokens ?? "",
+        output_tokens: r._usage?.output_tokens ?? "",
+      };
+    });
+  }
+
+  function exportCsv() { downloadCsv(buildCsvRows(), `fe-audit-${new Date().toISOString().slice(0, 10)}.csv`); }
+  function exportSavedCsv(entry) { downloadCsv(entry.rows, `fe-audit-${entry.timestamp.slice(0, 10)}.csv`); }
+
+  function saveToMemory() {
+    const rows = buildCsvRows();
+    if (rows.length === 0) { setSavedMsg("Nothing to save yet."); return; }
+    const entry = { timestamp: new Date().toISOString(), mode: "framework", segments: [...new Set(rows.map((r) => r.segment))], articleCount: rows.length, rows };
+    addSavedAnalysis(entry);
+    setSavedAnalyses(getSavedAnalyses());
+    setSavedMsg(`Saved ${rows.length} articles in this browser.`);
+  }
+
+  function deleteSaved(timestamp) {
+    deleteSavedAnalysis(timestamp);
+    setSavedAnalyses(getSavedAnalyses());
+  }
+
+  const resultSummary = {
+    total: totalArticles,
+    analyzed: resultEntries.length,
+    keep: resultEntries.filter(([, r]) => r.page_classification === "Keep").length,
+    overhaul: resultEntries.filter(([, r]) => r.page_classification === "Overhaul").length,
+    deindex: resultEntries.filter(([, r]) => r.page_classification === "De-index").length,
+  };
+
+  if (!authed) return <LoginScreen onSuccess={() => setAuthed(true)} />;
+
+  return (
+    <div>
+      <div className="page-header">
+        <div><p className="login-kicker">SEO content operations</p><h1 style={st.h1}>FE Content Audit</h1><p style={st.subtitle}>The legacy workflow is being retired. This workspace is the cleaner upload-first version for SEO reviews, editorial follow-up, and reliable page-by-page recommendations.</p></div>
+        <button style={st.btnOutline} onClick={() => { clearSession(); setAuthed(false); }}>Log out</button>
+      </div>
+
+      <div className="summary-grid">
+        <div className="hero-panel">
+          <div className="hero-inner">
+            <p className="step-label">Audit summary</p>
+            <p style={{ fontSize: "30px", fontWeight: 700, margin: "0 0 8px", color: C.ink }}>Run the new upload-first FE audit workflow.</p>
+            <p style={{ ...st.stepDesc, maxWidth: "560px", marginBottom: "18px" }}>Upload FE URLs, review the imported pages, and generate simple, grounded recommendations that SEO and editorial teams can act on quickly.</p>
+            <div className="dashboard-grid" style={{ marginBottom: 0 }}>
+              <div className="metric-card"><p className="metric-label">Uploaded pages</p><p className="metric-value">{totalArticles}</p></div>
+              <div className="metric-card"><p className="metric-label">Reviewed</p><p className="metric-value">{resultEntries.length}</p></div>
+              <div className="metric-card"><p className="metric-label">Failed pages</p><p className="metric-value">{Object.values(results).filter((r) => r._failed).length}</p></div>
+              <div className="metric-card"><p className="metric-label">Saved runs</p><p className="metric-value">{savedAnalyses.length}</p></div>
+            </div>
+          </div>
+        </div>
+        <div className="panel" style={{ padding: "20px" }}>
+          <p className="step-label">Audit controls</p>
+          <div className="insight-list">
+            <div className="insight-row"><span>Workflow</span><strong style={{ color: C.ink }}>V2 upload-first</strong></div>
+            <div className="bar-track"><div className="bar-fill" style={{ width: `${totalArticles ? Math.max(6, Math.round((resultEntries.length / totalArticles) * 100)) : 0}%` }} /></div>
+            <div className="insight-row"><span>Provider</span><strong style={{ color: C.ink }}>{aiProvider === "anthropic" ? "Anthropic" : "OpenAI"}</strong></div>
+            <div className="insight-row"><span>Depth profile</span><strong style={{ color: C.ink }}>{costProfile === "standard" ? "Deep analysis" : "Lower cost"}</strong></div>
+            <div className="insight-row"><span>Response handling</span><strong style={{ color: C.ink }}>Recovered if needed</strong></div>
+          </div>
+        </div>
+      </div>
+
+      <div style={st.card}>
+        <p className="step-label">Step 1</p>
+        <p style={st.stepTitle}>Upload FE URLs</p>
+        <p style={st.stepDesc}>Paste FE URLs directly, or upload an Excel, CSV, TSV, or TXT file. The old segment-first flow has been retired from the main experience so this tool is easier to understand and use.</p>
+        {loadMsg && <p style={{ fontSize: "13px", color: /loaded|imported|saved/i.test(loadMsg) ? C.success : C.error, marginTop: "10px", fontWeight: 600 }}>{loadMsg}</p>}
+        <textarea style={{ minHeight: "140px", marginBottom: "10px" }} value={importUrlsText} onChange={(e) => setImportUrlsText(e.target.value)} placeholder={"Examples:\nhttps://www.financialexpress.com/business/...-4312602/\nhttps://www.financialexpress.com/market/...-4312501/\n\nSpreadsheet or CSV header:\nurl"} />
+        <div className="toolbar-row">
+          <input type="file" accept=".csv,.tsv,.txt,.xlsx,.xls,text/csv,text/tab-separated-values,text/plain,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" onChange={handleImportFile} />
+          {importFileName && <span style={st.caption}>Loaded file: {importFileName}</span>}
+        </div>
+        <div style={{ marginTop: "10px" }}>
+          <button style={st.btnPrimary} onClick={importOwnUrls} disabled={loadingArticles}>{loadingArticles ? "Importing..." : "Import FE URLs"}</button>
+        </div>
+      </div>
+
+      <div style={st.cardLavender}>
+        <p className="step-label">Workspace</p>
+        <p style={{ ...st.stepTitle, fontSize: "18px" }}>Saved analyses (this browser)</p>
+        <p style={st.stepDesc}>Export or delete previous analyses without running them again.</p>
+        {savedMsg && <p style={{ fontSize: "13px", color: C.success, marginBottom: "8px" }}>{savedMsg}</p>}
+        {savedAnalyses.length === 0 ? <p style={st.caption}>No saved analyses yet.</p> : (
+          <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+            {savedAnalyses.map((entry) => (
+              <div className="saved-row" key={entry.timestamp} style={{ alignItems: "center", background: C.canvas, borderRadius: "8px", padding: "10px 14px", fontSize: "13px" }}>
+                <span><strong>{new Date(entry.timestamp).toLocaleString()}</strong> - {entry.articleCount} articles</span>
+                <span className="saved-actions">
+                  <button style={{ ...st.btnOutline, padding: "5px 14px", fontSize: "12px" }} onClick={() => exportSavedCsv(entry)}>Export CSV</button>
+                  <button style={{ ...st.btnOutlineError, padding: "5px 14px", fontSize: "12px" }} onClick={() => deleteSaved(entry.timestamp)}>Delete</button>
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {totalArticles > 0 && (
+        <div style={st.card}>
+          <p className="step-label">Step 2</p>
+          <p style={st.stepTitle}>Review imported pages</p>
+          <p style={st.stepDesc}>{totalArticles} uploaded page(s) are ready. Select the URLs you want to audit, then run the new FE content review flow.</p>
+          <div className="toolbar-row" style={{ marginBottom: "12px" }}>
+            <label style={{ fontSize: "13px", fontWeight: 700 }}>
+              Pages to review
+              <br />
+              <select aria-label="Recommendation count" style={{ width: "160px", marginTop: "6px" }} value={recommendationCap} onChange={(e) => setRecommendationLimit(Number(e.target.value))}>
+                {RECOMMENDATION_COUNT_OPTIONS.filter((count) => count <= Math.max(totalArticles, 50)).map((count) => <option key={count} value={count}>{count} pages</option>)}
+                {totalArticles > RECOMMENDATION_COUNT_OPTIONS[RECOMMENDATION_COUNT_OPTIONS.length - 1] && <option value={Math.min(totalArticles, recommendationCap)}>{Math.min(totalArticles, recommendationCap)} pages</option>}
+              </select>
+            </label>
+            <button style={st.btnOutline} onClick={() => selectAllLoadedArticles(recommendationCap)}>Select first {recommendationCap}</button>
+            <button style={st.btnOutline} onClick={() => setSelectedArticleIds(Object.fromEntries(allLoadedArticles.map((article) => [article.id, true])))}>Select all loaded</button>
+            <button style={st.btnOutlineError} onClick={() => setSelectedArticleIds({})}>Clear selection</button>
+            <span style={st.caption}>{selectedArticles.length} selected, {selectedRecommendationArticles.length} will run now.</span>
+          </div>
+          {analysisNotice && <p style={{ fontSize: "13px", color: C.warn, margin: "0 0 12px", fontWeight: 600 }}>{analysisNotice}</p>}
+          <div className="article-table" style={{ maxHeight: "320px", overflowY: "auto" }}>
+            <div className="article-table-header">
+              <span>Select</span>
+              <span>Page</span>
+              <span>Byline</span>
+              <span>Published</span>
+            </div>
+            {allLoadedArticles.map((a) => (
+              <label key={a.id} className="article-table-row" style={{ fontSize: "13px", cursor: "pointer" }}>
+                <input type="checkbox" checked={Boolean(selectedArticleIds[a.id])} onChange={(e) => toggleArticleSelection(a.id, e.target.checked)} style={{ marginTop: "2px" }} />
+                <span>
+                  <strong style={{ color: C.ink }}>{a.headline}</strong>
+                  <span style={{ ...st.caption, display: "block", marginTop: "4px", wordBreak: "break-all" }}>{a.url}</span>
+                </span>
+                <span style={st.caption}>{a.byline || "Byline not available"}</span>
+                <span style={st.caption}>{formatDate(a.publish_date)}</span>
+              </label>
+            ))}
+          </div>
+          <div style={{ marginTop: "14px", padding: "12px 14px", background: C.lavender, borderRadius: "8px" }}>
+            <p style={{ fontSize: "13px", fontWeight: 700, margin: "0 0 8px" }}>Audit settings</p>
+            <div style={{ marginBottom: "12px" }}>
+              <p style={{ fontSize: "13px", fontWeight: 700, margin: "0 0 8px" }}>AI provider:</p>
+              <label style={{ fontSize: "13px", marginRight: "20px" }}><input type="radio" checked={aiProvider === "anthropic"} onChange={() => changeAiProvider("anthropic")} /> Anthropic API</label>
+              <label style={{ fontSize: "13px" }}><input type="radio" checked={aiProvider === "openai"} onChange={() => changeAiProvider("openai")} /> OpenAI API</label>
+            </div>
+            <div style={{ marginBottom: "12px" }}>
+              <p style={{ fontSize: "13px", fontWeight: 700, margin: "0 0 8px" }}>Depth profile:</p>
+              <label style={{ fontSize: "13px", marginRight: "20px" }}><input type="radio" checked={costProfile === "standard"} onChange={() => changeCostProfile("standard")} /> Deep analysis</label>
+              <label style={{ fontSize: "13px" }}><input type="radio" checked={costProfile === "low"} onChange={() => changeCostProfile("low")} /> Lower cost</label>
+            </div>
+            <label style={{ display: "block", fontSize: "13px", fontWeight: 700, marginBottom: "8px" }}>
+              {aiProvider === "anthropic" ? "Claude model" : "OpenAI model"}
+              <br />
+              <select aria-label="AI model" style={{ width: "100%", marginTop: "6px" }} value={aiModel} onChange={(e) => setAiModel(e.target.value)}>
+                {(AI_PROVIDER_OPTIONS[aiProvider] || []).map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+              </select>
+            </label>
+          </div>
+          <p style={st.caption}>This workflow uses live model analysis. If the model answers in an uneven format, the app now tries to recover that response before marking the page for retry.</p>
+          <div className="toolbar-row">
+            <button style={st.btnPrimary} onClick={analyzeAll} disabled={analyzing}>{analyzing ? "Audit in progress..." : `Run audit for ${selectedRecommendationArticles.length} pages`}</button>
+            {analyzing && <button style={st.btnOutlineError} onClick={stopAnalysis}>Stop analysis</button>}
+          </div>
+        </div>
+      )}
+
+      {resultEntries.length > 0 && (
+        <div style={st.card}>
+          <p className="step-label">Step 3</p>
+          <div className="result-header" style={{ alignItems: "center", gap: "12px", marginBottom: "8px" }}>
+            <p style={st.stepTitle}>Audit output</p>
+            {analyzing && <button style={st.btnOutlineError} onClick={stopAnalysis}>Stop analysis</button>}
+          </div>
+          {analyzing && <p style={{ fontSize: "14px", color: C.inkMute, marginTop: 0 }}>{progress}</p>}
+          {analysisNotice && <p style={{ fontSize: "13px", color: C.warn, margin: "0 0 12px", fontWeight: 600 }}>{analysisNotice}</p>}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 14px", background: C.cream, borderRadius: "8px", marginBottom: "16px", fontSize: "13px", flexWrap: "wrap", gap: "10px" }}>
+            <span style={{ fontWeight: 700 }}>Uploaded URL audit</span>
+            <span style={st.caption}>{resultSummary.analyzed}/{resultSummary.total} analysed</span>
+            <span>{resultSummary.deindex > 0 && <span style={{ color: C.error, fontWeight: 700, marginRight: "10px" }}>{resultSummary.deindex} de-index</span>}{resultSummary.overhaul > 0 && <span style={{ color: C.warn, fontWeight: 700, marginRight: "10px" }}>{resultSummary.overhaul} overhaul</span>}{resultSummary.keep > 0 && <span style={{ color: C.success }}>{resultSummary.keep} keep</span>}</span>
+          </div>
+          <div style={{ marginBottom: "14px", display: "flex", gap: "8px", flexWrap: "wrap" }}>
+            <button style={st.btnOutline} onClick={exportCsv}>Export CSV</button>
+            <button style={st.btnPrimary} onClick={saveToMemory}>Save analysis</button>
+            {Object.values(results).some((r) => r._failed) && <button style={st.btnOutlineError} onClick={retryFailed} disabled={analyzing}>Retry {Object.values(results).filter((r) => r._failed).length} failed</button>}
+          </div>
+          {resultEntries.map(([id, r]) => {
+            const a = Object.values(segmentArticles).flat().find((x) => x.id === id);
+            const badgeLabel = r.action_tag || r.page_classification || (r._failed ? "Retry" : "");
+            const isBad = badgeLabel === "De-index";
+            const isMid = badgeLabel === "Overhaul" || badgeLabel === "Retry" || /REWORK|NOINDEX|301 REDIRECT/i.test(badgeLabel);
+            return (
+              <div key={id} style={{ border: `1px solid ${C.hairline}`, borderRadius: "12px", padding: "14px 16px", marginBottom: "10px" }}>
+                <div className="result-header">
+                  <p style={{ fontWeight: 700, fontSize: "14px", margin: 0 }}>{a?.url ? <a href={a.url} target="_blank" rel="noopener noreferrer" style={{ color: C.linkBlue }}>{a.headline}</a> : a?.headline}</p>
+                  <span style={{ fontSize: "12px", padding: "3px 12px", borderRadius: "90px", background: isBad ? C.errorTint : isMid ? C.warnTint : C.successTint, color: isBad ? C.error : isMid ? C.warn : C.success, fontWeight: 700, whiteSpace: "nowrap" }}>{badgeLabel}</span>
+                </div>
+                <p style={{ ...st.caption, margin: "4px 0 6px" }}>{a?.byline || "No byline"} - {formatDate(a?.publish_date)}</p>
+                <p style={{ ...st.caption, margin: "0 0 10px" }}>
+                  {r.tier ? `Tier: ${r.tier}` : "Tier: Not set"}{" · "}
+                  {r.data_availability ? `Data: ${r.data_availability}` : "Data: Not set"}
+                  {r.unscorable && r.unscorable !== "NONE" ? ` · ${r.unscorable}` : ""}
+                </p>
+                {r._model && <p style={st.caption}>Model used: {r._model}{r._provider ? ` via ${r._provider}` : ""}{r._cost_profile ? ` (${r._cost_profile} cost profile)` : ""}</p>}
+                {r._usage && <p style={st.caption}>API usage: {r._usage.input_tokens || 0} input tokens, {r._usage.output_tokens || 0} output tokens.</p>}
+                {r._failed ? (
+                  <div style={{ fontSize: "13px", marginTop: "10px", color: C.error }}>
+                    <strong>Analysis could not complete.</strong><br />{r.error}
+                  </div>
+                ) : (
+                  <div style={{ fontSize: "13px", lineHeight: 1.7 }}>
+                    <p style={{ fontWeight: 700, margin: "14px 0 6px" }}>Audit summary</p>
+                    <p style={{ margin: "0 0 8px" }}>{r.executive_summary}</p>
+                    {r.editorial_flag && r.editorial_flag !== "NONE" && (
+                      <p style={{ margin: "0 0 8px" }}><strong>Editorial flag:</strong> {r.editorial_flag}</p>
+                    )}
+                    <p style={{ fontWeight: 700, margin: "18px 0 6px" }}>What needs attention</p>
+                    {(r.findings || []).map((finding, i) => (
+                      <div key={`hcs-${i}`} style={{ marginBottom: "10px" }}>
+                        <strong>{finding.area} - {finding.issue}</strong>
+                        <div style={{ marginTop: "4px" }}>{finding.impact}</div>
+                        <div style={{ ...st.caption, marginTop: "4px" }}>Evidence: {finding.evidence}</div>
+                        <div style={{ marginTop: "4px" }}><strong>How to improve:</strong> {finding.fix}</div>
+                      </div>
+                    ))}
+                    <p style={{ fontWeight: 700, margin: "18px 0 6px" }}>Recommended next steps</p>
+                    <ol style={{ margin: "6px 0 0", paddingLeft: "20px" }}>
+                      {(r.next_steps || []).map((step, index) => <li key={index}>{step}</li>)}
+                    </ol>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DeprecatedLanding() {
+  const newUrl = `${window.location.origin}/#/v2`;
+  return (
+    <div style={{ minHeight: "100vh", display: "grid", placeItems: "center", padding: "24px" }}>
+      <div style={{ ...st.card, maxWidth: "720px", width: "100%", marginBottom: 0 }}>
+        <p className="login-kicker">Legacy entry point retired</p>
+        <h1 style={{ ...st.h1, marginBottom: "12px" }}>FE Content Audit has moved</h1>
+        <p style={{ ...st.subtitle, marginBottom: "18px" }}>
+          This older entry point is now deprecated. Please use the rebuilt FE Content Audit experience for all new reviews.
+        </p>
+        <div style={{ padding: "14px 16px", borderRadius: "14px", background: C.cream, border: `1px solid ${C.hairline}`, marginBottom: "18px" }}>
+          <p style={{ margin: 0, fontSize: "13px", color: C.inkMute }}>New product URL</p>
+          <a href={newUrl} style={{ ...st.link, fontSize: "15px", marginTop: "6px" }}>{newUrl}</a>
+        </div>
+        <div className="toolbar-row">
+          <a href={newUrl} style={{ ...st.btnPrimary, display: "inline-flex", alignItems: "center", justifyContent: "center", textDecoration: "none" }}>Open the new FE Content Audit</a>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function App() {
+  const [route, setRoute] = useState(() => window.location.hash || "");
+
+  useEffect(() => {
+    const onHashChange = () => setRoute(window.location.hash || "");
+    window.addEventListener("hashchange", onHashChange);
+    return () => window.removeEventListener("hashchange", onHashChange);
+  }, []);
+
+  if (route === "#/v2") return <AuditWorkspace />;
+  return <DeprecatedLanding />;
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+</body>
+</html>
+
+

@@ -1,0 +1,2 @@
+import {test,expect} from "@playwright/test";
+test("journalist and editorial framework surfaces render",async({page})=>{await page.goto("/");await expect(page.getByRole("heading",{name:/Focus on what matters/})).toBeVisible();await expect(page.getByRole("button",{name:"Run editorial check"})).toBeVisible();await page.getByRole("link",{name:"Editorial Framework"}).click();await expect(page.getByRole("heading",{name:/editorial framework behind/})).toBeVisible()});

@@ -1,0 +1,97 @@
+import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+import test from "node:test";
+
+test("result controls and output typography match the requested feedback", async () => {
+  const css = await readFile(new URL("../app/feedback.css", import.meta.url), "utf8");
+  assert.match(css, /\.result-toolbar/);
+  assert.match(css, /font:\s*14px\/1\.7 ui-monospace/);
+  assert.match(css, /input, select, textarea \{ font-size: 16px/);
+  assert.match(css, /@media \(max-width: 520px\)/);
+});
+
+test("administration reports usage and authentication activity without product feedback", async () => {
+  const admin = await readFile(new URL("../app/admin/page.tsx", import.meta.url), "utf8");
+  const tables = await readFile(new URL("../app/admin/admin-tables.tsx", import.meta.url), "utf8");
+  const css = await readFile(new URL("../app/feedback.css", import.meta.url), "utf8");
+  const auth = await readFile(new URL("../lib/auth-options.ts", import.meta.url), "utf8");
+  const feedbackRoute = await readFile(new URL("../app/api/feedback/route.ts", import.meta.url), "utf8");
+  assert.match(admin, /ARTICLES OPTIMISED/);
+  assert.match(admin, /TOTAL API TOKENS USED/);
+  assert.match(admin, /TOTAL EST\. COST/);
+  assert.doesNotMatch(admin, /COMPLETION RATE/);
+  assert.doesNotMatch(admin, /FORMAT RELIABILITY/);
+  assert.doesNotMatch(admin, /Product feedback/);
+  assert.match(admin, /User Activity/);
+  assert.match(tables, /URLs \/ Words/);
+  assert.match(admin, /wordCount: true/);
+  assert.match(tables, /Search by user, status or publication/);
+  assert.match(tables, /Search by user or activity/);
+  assert.match(tables, /Load More/);
+  assert.match(css, /\.admin-table-pair/);
+  assert.match(css, /\.user-activity-table th:first-child/);
+  assert.match(css, /\.user-dropdown/);
+  assert.match(admin, /item\.user\.email/);
+  assert.match(auth, /auth\.sign_out/);
+  assert.match(feedbackRoute, /vaibhav\.singh@indianexpress\.com/);
+});
+
+test("sign-in and logout entry points protect against repeat clicks", async () => {
+  const signInButton = await readFile(new URL("../app/auth/signin/sign-in-button.tsx", import.meta.url), "utf8");
+  const signInLink = await readFile(new URL("../app/ui/sign-in-link.tsx", import.meta.url), "utf8");
+  const signedOut = await readFile(new URL("../app/auth/signedout/page.tsx", import.meta.url), "utf8");
+  const clearSession = await readFile(new URL("../app/auth/signedout/clear-session.tsx", import.meta.url), "utf8");
+  const header = await readFile(new URL("../app/ui/header.tsx", import.meta.url), "utf8");
+  assert.match(signInButton, /Signing you in/);
+  assert.match(signInButton, /disabled=\{loading\}/);
+  assert.match(signInLink, /Opening sign in/);
+  assert.match(signInLink, /disabled=\{loading\}/);
+  assert.match(signedOut, /Back to home/);
+  assert.match(signedOut, /Log in again/);
+  assert.match(clearSession, /localStorage\.removeItem/);
+  assert.match(header, /<SignInLink className="user"/);
+});
+
+test("new check preserves session history with draft labels and scrolls to the outcome", async () => {
+  const source = await readFile(new URL("../app/ui/check-form.tsx", import.meta.url), "utf8");
+  const route = await readFile(new URL("../app/api/check/route.ts", import.meta.url), "utf8");
+  const css = await readFile(new URL("../app/feedback.css", import.meta.url), "utf8");
+  assert.match(source, /scrollIntoView/);
+  assert.match(source, /getDraftLabel/);
+  assert.match(source, /localStorage/);
+  assert.match(source, /if \(loading \|\| submitLock\.current\) return/);
+  assert.match(source, /requestKey: crypto\.randomUUID\(\)/);
+  assert.match(source, /Running editorial check/);
+  assert.match(source, /Start new draft/);
+  assert.match(source, /Suggested Headline/);
+  assert.match(source, /Subhead \/ Straps \/ Excerpt \(Optional\)/);
+  assert.match(source, /navigator\.share/);
+  assert.match(source, /Rate this tool/);
+  assert.match(source, /Send rating/);
+  assert.match(source, /star-rating/);
+  assert.match(source, /ACTIVE SESSION HISTORY/);
+  assert.doesNotMatch(source, /Untitled draft/);
+  assert.doesNotMatch(source, /Privacy by design/);
+  assert.doesNotMatch(source, /View or download a result here/);
+  assert.match(route, /submission-lock:/);
+  assert.match(route, /already running/);
+  assert.match(css, /\.star-rating/);
+  assert.match(css, /\.session-history \{ order: -1; \}/);
+});
+
+test("editorial framework navigation and coaching checks are present", async () => {
+  const header = await readFile(new URL("../app/ui/header.tsx", import.meta.url), "utf8");
+  const framework = await readFile(new URL("../app/standards/page.tsx", import.meta.url), "utf8");
+  const home = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
+  assert.match(header, />Editorial Framework<\/Link>/);
+  assert.match(framework, /Seven coaching checks/);
+  assert.match(framework, /primary challenge/);
+  assert.match(framework, /Human element/);
+  assert.match(framework, /Lead and front-loading/);
+  assert.match(framework, /Mission and emotion/);
+  assert.match(framework, /Declutter and clarity/);
+  assert.match(framework, /Jargon and acronyms/);
+  assert.match(framework, /Quote quality/);
+  assert.match(framework, /So what\?/);
+  assert.match(home, /highlights what is working well alongside what needs stronger coaching/);
+});
