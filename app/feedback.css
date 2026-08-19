@@ -492,6 +492,40 @@ body {
 label { font-size: 14px; }
 input, select, textarea { font-size: 16px; }
 .counter, .disclaimer, footer { font-size: 13px; }
+
+.ai-detection-block {
+  display: grid;
+  gap: 6px;
+  padding: 14px 16px;
+  border: 1px solid #b42318;
+  border-radius: 10px;
+  background: #fff1f0;
+  color: #7a271a;
+}
+.ai-detection-block strong { font-size: 16px; }
+.ai-detection-block span { font-weight: 700; }
+.ai-detection-block p { margin: 0; }
+.ai-disclaimer {
+  display: block;
+  padding: 12px 14px;
+  border-left: 4px solid #d97706;
+  background: #fffbeb;
+  color: #78350f;
+}
+.ai-disclaimer mark {
+  background: #fde68a;
+  color: inherit;
+  font-weight: 800;
+}
+.ai-detection-pass {
+  margin: 10px 0 0;
+  padding: 9px 12px;
+  border: 1px solid #86b89a;
+  border-radius: 8px;
+  background: #ecfdf3;
+  color: #166534;
+  font-size: 14px;
+}
 .next .step strong, .next .step span, .session-history p, .session-history small { font-size: 15px; }
 .privacy, .privacy strong { font-size: 15px; }
 .history-list button { font-size: 15px; }

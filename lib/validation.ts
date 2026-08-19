@@ -6,7 +6,7 @@ export const checkSchema = z.object({
   publication: z.enum(["Indian Express", "Financial Express", "Jansatta", "Loksatta"]),
   headline: z.string().min(1, "Suggested headline is required.").max(240).transform(clean),
   subhead: z.string().max(280).transform(clean).default(""),
-  article: z.string().min(80).max(50_000).transform(clean),
+  article: z.string().min(255, "Article copy must contain at least 255 characters for AI detection.").max(50_000).transform(clean),
 }).strict();
 
 export type CheckInput = z.infer<typeof checkSchema>;

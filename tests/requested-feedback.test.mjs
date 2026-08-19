@@ -19,6 +19,9 @@ test("administration reports usage and authentication activity without product f
   assert.match(admin, /ARTICLES OPTIMISED/);
   assert.match(admin, /TOTAL API TOKENS USED/);
   assert.match(admin, /TOTAL EST\. COST/);
+  assert.match(admin, /AI SCANS/);
+  assert.match(admin, /AI BLOCKED/);
+  assert.match(admin, /AVG AI ESTIMATE/);
   assert.doesNotMatch(admin, /COMPLETION RATE/);
   assert.doesNotMatch(admin, /FORMAT RELIABILITY/);
   assert.doesNotMatch(admin, /Product feedback/);
@@ -61,7 +64,11 @@ test("new check preserves session history with draft labels and scrolls to the o
   assert.match(source, /localStorage/);
   assert.match(source, /if \(loading \|\| submitLock\.current\) return/);
   assert.match(source, /requestKey: crypto\.randomUUID\(\)/);
-  assert.match(source, /Running editorial check/);
+  assert.match(source, /Check AI Detection/);
+  assert.match(source, /Checking AI detection and editorial standards/);
+  assert.match(source, /minLength=\{255\}/);
+  assert.match(source, /false positives/);
+  assert.match(source, /detection estimate—not proof/);
   assert.match(source, /Start new draft/);
   assert.match(source, /Suggested Headline/);
   assert.match(source, /Subhead \/ Straps \/ Excerpt \(Optional\)/);
@@ -75,6 +82,9 @@ test("new check preserves session history with draft labels and scrolls to the o
   assert.doesNotMatch(source, /View or download a result here/);
   assert.match(route, /submission-lock:/);
   assert.match(route, /already running/);
+  assert.match(route, /detectAiContent/);
+  assert.match(route, /AI_CONTENT_DETECTED/);
+  assert.match(route, /status: 422/);
   assert.match(css, /\.star-rating/);
   assert.match(css, /\.session-history \{ order: -1; \}/);
 });

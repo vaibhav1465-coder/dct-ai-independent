@@ -88,11 +88,16 @@ model CheckMetadata {
   inputTokens         Int?
   outputTokens        Int?
   estimatedCostMicros Int?
+  aiDetectionScore    Float?
+  aiDetectionPassed   Boolean?
+  aiDetectionProvider String?
+  aiDetectionModel    String?
   createdAt           DateTime    @default(now())
   feedback            Feedback?
 
   @@index([createdAt])
   @@index([userId, createdAt])
+  @@index([aiDetectionPassed, createdAt])
 }
 
 model Feedback {
