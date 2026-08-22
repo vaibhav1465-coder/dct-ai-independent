@@ -4,7 +4,15 @@ import { prisma } from "../../lib/prisma";
 import { ADMIN_EMAILS } from "../../lib/auth-options";
 import { getApprovedUserEmails } from "../../lib/access-policy";
 import { addApprovedUser, removeApprovedUser } from "./access-actions";
+import { updateAiDetectionProvider } from "./ai-detection-actions";
 import { isAccessEmailConfigured } from "../../lib/access-email";
+import {
+  AI_DETECTION_PROVIDER_PROFILES,
+  AI_DETECTION_PROVIDER_SETTING_KEY,
+  SUPPORTED_AI_DETECTION_PROVIDERS,
+  getProviderProfile,
+  normalizeAiDetectionProvider,
+} from "../../lib/ai-detection-providers";
 import { RecentUsageTable, UserActivityTable } from "./admin-tables";
 
 export const dynamic = "force-dynamic";
@@ -20,6 +28,11 @@ type RecentCheck = {
   outputTokens: number | null;
   aiDetectionScore: number | null;
   aiDetectionPassed: boolean | null;
+  aiHeadlineScore: number | null;
+  aiBodyScore: number | null;
+  aiDetectionThreshold: number | null;
+  cviVerdict: string | null;
+  cviAction: string | null;
   createdAt: Date;
   user: { email: string };
 };
@@ -58,8 +71,10 @@ export default async function Admin() {
     authActivity,
     approvedUsers,
     aiScans,
-    aiBlocked,
+    aiWarnings,
     aiScores,
+    aiProviderUsage,
+    activeDetectorSetting,
   ] = await Promise.all([
     prisma.checkMetadata.count({ where: { createdAt: { gte: since } } }),
     prisma.user.count({ where: { checks: { some: { createdAt: { gte: since } } } } }),
@@ -82,6 +97,11 @@ export default async function Admin() {
         outputTokens: true,
         aiDetectionScore: true,
         aiDetectionPassed: true,
+        aiHeadlineScore: true,
+        aiBodyScore: true,
+        aiDetectionThreshold: true,
+        cviVerdict: true,
+        cviAction: true,
         createdAt: true,
         user: { select: { email: true } },
       },
@@ -99,11 +119,17 @@ export default async function Admin() {
     prisma.checkMetadata.count({
       where: { createdAt: { gte: since }, aiDetectionScore: { not: null } },
     }),
-    prisma.checkMetadata.count({ where: { createdAt: { gte: since }, aiDetectionPassed: false } }),
+    prisma.checkMetadata.count({ where: { createdAt: { gte: since }, cviVerdict: "WARNING" } }),
     prisma.checkMetadata.aggregate({
       where: { createdAt: { gte: since }, aiDetectionScore: { not: null } },
       _avg: { aiDetectionScore: true },
     }),
+    prisma.checkMetadata.groupBy({
+      by: ["aiDetectionProvider"],
+      where: { createdAt: { gte: since }, aiDetectionProvider: { not: null } },
+      _count: { _all: true },
+    }),
+    prisma.setting.findUnique({ where: { key: AI_DETECTION_PROVIDER_SETTING_KEY } }),
   ]);
 
   const actorIds = authActivity.flatMap((item) => (item.actorId ? [item.actorId] : []));
@@ -120,6 +146,12 @@ export default async function Admin() {
     tokenUsage._sum.inputTokens ?? 0,
     tokenUsage._sum.outputTokens ?? 0,
   );
+  const activeDetector = normalizeAiDetectionProvider(activeDetectorSetting?.publicValue);
+  const activeDetectorProfile = getProviderProfile(activeDetector);
+  const providerUsageRows = aiProviderUsage.map((item) => ({
+    provider: item.aiDetectionProvider ?? "unknown",
+    checks: item._count._all,
+  }));
   const metrics = [
     ["CHECKS RUN", String(checks), "All attempts · 30 days"],
     ["ARTICLES OPTIMISED", String(successful), "Successful checks · 30 days"],
@@ -130,10 +162,10 @@ export default async function Admin() {
       `₹${estimatedCostInr.toFixed(2)}`,
       "Claude Sonnet actual input/output · ₹95/$",
     ],
-    ["AI SCANS", String(aiScans), "Copyleaks checks · 30 days"],
-    ["AI BLOCKED", String(aiBlocked), "20% or higher · no coaching outcome"],
+    ["CVI SCANS", String(aiScans), "Headline + body checks · 30 days"],
+    ["CVI WARNINGS", String(aiWarnings), "20% or higher · journalist choice"],
     [
-      "AVG AI ESTIMATE",
+      "AVG CVI ESTIMATE",
       `${(aiScores._avg.aiDetectionScore ?? 0).toFixed(1)}%`,
       "Detection estimate · 30 days",
     ],
@@ -146,12 +178,12 @@ export default async function Admin() {
     checkedOn: formatActivityTime(item.createdAt),
     status: item.status.toLowerCase(),
     reason:
-      item.failureCategory === "ai_content_detected"
-        ? `AI estimate ${(item.aiDetectionScore ?? 0).toFixed(1)}% · Blocked`
+      item.cviVerdict === "WARNING"
+        ? `CVI warning H ${(item.aiHeadlineScore ?? 0).toFixed(1)}% / B ${(item.aiBodyScore ?? 0).toFixed(1)}% · ${item.cviAction === "CONTEST" ? "Contested" : "Proceeded"}`
         : item.status === "FAILED"
           ? (item.failureCategory ?? "-")
           : item.aiDetectionScore !== null
-            ? `AI ${(item.aiDetectionScore ?? 0).toFixed(1)}% · Completed`
+            ? `CVI ${(item.aiDetectionScore ?? 0).toFixed(1)}% · Completed`
             : "Completed",
     runs: progressByCheckId.get(item.id) ?? `1/${runCounts.get(item.userId) ?? 1}`,
     words: item.wordCount.toLocaleString("en-IN"),
@@ -199,16 +231,65 @@ export default async function Admin() {
             <ul className="health">
               <li>PostgreSQL metadata and audit storage connected</li>
               <li>Provider credentials remain server-side</li>
-              <li>Copyleaks AI detection gate fails closed</li>
+              <li>CVI warning gate keeps provider credentials server-side</li>
               <li>Server-side access policy active</li>
               <li>Prompt checksum locked</li>
             </ul>
           </AdminCard>
           <AdminCard title="Engine and cost controls" compact>
-            <p>Detection gate: Copyleaks · block at 20% estimated AI content</p>
+            <p>CVI: headline and body checked independently · warning at 20%</p>
             <p>Editorial engine: Anthropic · Model: Claude Sonnet 4.6</p>
             <p>Cost display: $3/MTok input + $15/MTok output · ₹95/$</p>
             <p>Per-user limit: 5 checks / 15 minutes · Organisation safety limit: 500/day</p>
+          </AdminCard>
+          <AdminCard title="AI detection provider control" compact>
+            <p>
+              <b>Live provider:</b> {activeDetectorProfile.name}
+            </p>
+            <p>
+              Provider choice is admin-only. Journalists see only the CVI estimate and warning
+              state, not the detector brand.
+            </p>
+            <form className="detector-control" action={updateAiDetectionProvider}>
+              <label>
+                Active detector for users
+                <select name="provider" defaultValue={activeDetector}>
+                  {AI_DETECTION_PROVIDER_PROFILES.map((profile) => (
+                    <option
+                      key={profile.id}
+                      value={profile.id}
+                      disabled={!SUPPORTED_AI_DETECTION_PROVIDERS.has(profile.id)}
+                    >
+                      {profile.name}
+                      {SUPPORTED_AI_DETECTION_PROVIDERS.has(profile.id) ? "" : " — not connected"}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <button type="submit">Save detector</button>
+            </form>
+            <div className="detector-list">
+              {AI_DETECTION_PROVIDER_PROFILES.map((profile) => (
+                <div key={profile.id}>
+                  <strong>{profile.name}</strong>
+                  <span>{profile.adminNote}</span>
+                  <small>{profile.usageNote}</small>
+                  <small>{profile.minTextNote}</small>
+                </div>
+              ))}
+            </div>
+            <div className="detector-usage">
+              <b>30-day usage by detector</b>
+              {providerUsageRows.length ? (
+                providerUsageRows.map((row) => (
+                  <span key={row.provider}>
+                    {row.provider}: {row.checks.toLocaleString("en-IN")} scans
+                  </span>
+                ))
+              ) : (
+                <span>No detector scans recorded yet.</span>
+              )}
+            </div>
           </AdminCard>
           <AdminCard title="Knowledge-base register" compact>
             <p>

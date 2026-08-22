@@ -561,6 +561,65 @@ input, select, textarea { font-size: 16px; }
 .mail-status.ready { background: #edf7f2; color: #31745d; }
 .mail-status.pending { background: #fff8e9; color: #7a5a13; }
 
+.detector-control {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: end;
+  gap: 10px;
+  margin: 16px 0;
+}
+
+.detector-control label { margin: 0; }
+.detector-control select {
+  min-height: 44px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: #fff;
+  padding: 0 12px;
+  color: var(--ink);
+  font: inherit;
+}
+
+.detector-control button {
+  border: 1px solid var(--red);
+  border-radius: 4px;
+  background: var(--red);
+  color: #fff;
+  padding: 12px 14px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.detector-list,
+.detector-usage {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.detector-list > div {
+  display: grid;
+  gap: 4px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 10px 12px;
+  background: #fffdf8;
+}
+
+.detector-list span,
+.detector-list small,
+.detector-usage span {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.detector-usage {
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+}
+
 .admin-card {
   min-height: 0;
 }
@@ -692,4 +751,23 @@ input, select, textarea { font-size: 16px; }
   .blocked { margin: 48px 16px; }
   .blocked h1 { font-size: 38px; line-height: 1.05; }
   .signin-button { width: 100%; }
+}
+
+.cvi-warning-block {
+  border-color: #e7b45f;
+  background: #fff8e9;
+}
+
+.cvi-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.cvi-actions button {
+  width: auto;
+  min-width: 160px;
+  border-radius: 4px;
+  padding: 10px 12px;
 }

@@ -6,10 +6,17 @@ import { getArticleLabel } from "../../lib/article-label";
 type AiDetection = {
   aiScore: number;
   humanScore: number;
-  blocked: boolean;
+  flagged: boolean;
   threshold: number;
-  provider: string;
-  model: string;
+  component: "headline" | "body";
+};
+type CviResult = {
+  verdict: "PASS" | "WARNING";
+  threshold: number;
+  headline: AiDetection;
+  body: AiDetection;
+  highestScore: number;
+  flaggedComponents: Array<"headline" | "body">;
 };
 type Result = {
   checkId: string | null;
@@ -17,9 +24,9 @@ type Result = {
   verdict: string;
   category: string;
   reliability: string;
-  aiDetection?: AiDetection;
+  cvi?: CviResult;
 };
-type DetectionNotice = { aiScore: number; threshold: number; message: string };
+type CviAction = "CONTINUE" | "CONTEST";
 type SessionItem = {
   id: string;
   publication: string;
@@ -90,7 +97,7 @@ export function CheckForm({ savedAnalyses }: { savedAnalyses: SavedAnalysis[] })
   const [visibleSaved, setVisibleSaved] = useState(3);
   const [hydrated, setHydrated] = useState(false);
   const [error, setError] = useState("");
-  const [detectionNotice, setDetectionNotice] = useState<DetectionNotice | null>(null);
+  const [cviWarning, setCviWarning] = useState<CviResult | null>(null);
   const submitLock = useRef(false);
   const resultRef = useRef<HTMLElement | null>(null);
   const words = article.trim() ? article.trim().split(/\s+/).length : 0;
@@ -141,12 +148,16 @@ export function CheckForm({ savedAnalyses }: { savedAnalyses: SavedAnalysis[] })
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
+    await runCheck();
+  }
+
+  async function runCheck(cviAction?: CviAction) {
     if (loading || submitLock.current) return;
     submitLock.current = true;
     setLoading(true);
     setResult(null);
     setError("");
-    setDetectionNotice(null);
+    if (!cviAction) setCviWarning(null);
     try {
       const response = await fetch("/api/check", {
         method: "POST",
@@ -156,25 +167,22 @@ export function CheckForm({ savedAnalyses }: { savedAnalyses: SavedAnalysis[] })
           headline,
           subhead,
           article,
+          cviAction,
           requestKey: crypto.randomUUID(),
         }),
       });
       const data = (await response.json()) as Result & {
         code?: string;
         error?: string;
-        aiDetection?: AiDetection;
+        cvi?: CviResult;
       };
-      if (!response.ok) {
-        if (data.code === "AI_CONTENT_DETECTED" && data.aiDetection) {
-          setDetectionNotice({
-            aiScore: data.aiDetection.aiScore,
-            threshold: data.aiDetection.threshold,
-            message: data.error ?? "AI-generated content was detected.",
-          });
-        }
-        throw new Error(data.error ?? "The check could not be completed.");
+      if (!response.ok) throw new Error(data.error ?? "The check could not be completed.");
+      if (data.code === "CVI_WARNING" && data.cvi) {
+        setCviWarning(data.cvi);
+        return;
       }
       const completed = data as Result;
+      setCviWarning(null);
       setResult(completed);
       setHistory((current) =>
         [
@@ -205,7 +213,7 @@ export function CheckForm({ savedAnalyses }: { savedAnalyses: SavedAnalysis[] })
     setArticle(item.article);
     setResult(item.result);
     setError("");
-    setDetectionNotice(null);
+    setCviWarning(null);
   }
 
   function restoreSaved(item: SavedAnalysis) {
@@ -221,7 +229,7 @@ export function CheckForm({ savedAnalyses }: { savedAnalyses: SavedAnalysis[] })
       reliability: item.reliability,
     });
     setError("");
-    setDetectionNotice(null);
+    setCviWarning(null);
   }
 
   function clearDraft() {
@@ -231,7 +239,7 @@ export function CheckForm({ savedAnalyses }: { savedAnalyses: SavedAnalysis[] })
     setArticle("");
     setResult(null);
     setError("");
-    setDetectionNotice(null);
+    setCviWarning(null);
   }
 
   function downloadName(item: SessionItem) {
@@ -331,7 +339,7 @@ export function CheckForm({ savedAnalyses }: { savedAnalyses: SavedAnalysis[] })
           Article copy
           <textarea
             required
-            minLength={255}
+            minLength={201}
             maxLength={50_000}
             value={article}
             onChange={(event) => setArticle(event.target.value)}
@@ -347,14 +355,24 @@ export function CheckForm({ savedAnalyses }: { savedAnalyses: SavedAnalysis[] })
               : "Website clutter is cleaned automatically"}
           </span>
         </div>
-        {detectionNotice ? (
-          <div role="alert" className="ai-detection-block">
-            <strong>AI detection blocked this article</strong>
+        {cviWarning ? (
+          <div role="alert" className="ai-detection-block cvi-warning-block">
+            <strong>CVI — Copy Verification warning</strong>
             <span>
-              {detectionNotice.aiScore.toFixed(1)}% estimated AI content · blocking threshold{" "}
-              {detectionNotice.threshold}%.
+              Headline {cviWarning.headline.aiScore.toFixed(1)}% · Body copy {cviWarning.body.aiScore.toFixed(1)}% · Threshold {cviWarning.threshold}%
             </span>
-            <p>{detectionNotice.message} Humanise the article before submitting it again.</p>
+            <p>{warningSentence(cviWarning)}</p>
+            <div className="cvi-actions">
+              <button className="secondary-button" type="button" onClick={() => setCviWarning(null)} disabled={loading}>
+                Rewrite and Submit
+              </button>
+              <button type="button" onClick={() => runCheck("CONTINUE")} disabled={loading}>
+                Continue to Coaching
+              </button>
+              <button className="secondary-button" type="button" onClick={() => runCheck("CONTEST")} disabled={loading}>
+                Contest this flag
+              </button>
+            </div>
           </div>
         ) : error ? (
           <p role="alert" className="form-error">
@@ -362,12 +380,10 @@ export function CheckForm({ savedAnalyses }: { savedAnalyses: SavedAnalysis[] })
           </p>
         ) : null}
         <button disabled={loading} aria-busy={loading}>
-          {loading ? "Checking AI detection and editorial standards..." : "Check AI Detection"}
+          {loading ? "Checking copy verification and editorial standards..." : "Check AI Detection"}
         </button>
         <small className="disclaimer ai-disclaimer">
-          <mark>Important:</mark> AI detectors can produce <mark>false positives</mark>, especially
-          for edited, translated, or formal journalistic writing. The result is a{" "}
-          <mark>detection estimate—not proof</mark> that content was written by AI.
+          <mark>Important:</mark> AI detectors run only when article copy is <mark>more than 200 characters</mark>. Daily/monthly usage depends on the provider plan. Results can produce <mark>false positives</mark> and remain a <mark>detection estimate—not proof</mark>.
         </small>
         <small className="disclaimer">
           DCT AI Independent may flag facts for verification, but it will not invent context or
@@ -467,7 +483,7 @@ export function CheckForm({ savedAnalyses }: { savedAnalyses: SavedAnalysis[] })
         <aside className="card next">
           <p className="eyebrow">WHAT HAPPENS NEXT</p>
           {[
-            ["Detect", "Estimate AI-written content first. Articles at 20% or higher are blocked."],
+            ["Verify", "CVI checks headline and body copy independently before coaching runs."],
             ["Clean", "Remove website interface noise without changing the article."],
             ["Check", "Run seven editorial dimensions, seven coaching checks and copy rules."],
             [
@@ -502,6 +518,15 @@ export function CheckForm({ savedAnalyses }: { savedAnalyses: SavedAnalysis[] })
       ) : null}
     </section>
   );
+}
+
+function warningSentence(cvi: CviResult) {
+  const component = cvi.flaggedComponents.length === 2
+    ? "headline and body copy"
+    : cvi.flaggedComponents[0] === "headline"
+      ? "headline"
+      : "body copy";
+  return cvi.highestScore.toFixed(1) + "% of your " + component + " appears to be generated or influenced by an external tool.";
 }
 
 const ResultPanel = ({
@@ -575,11 +600,11 @@ const ResultPanel = ({
       <div>
         <p className="eyebrow">EDITORIAL COACHING COMPLETE</p>
         <h2>DCT AI Independent review</h2>
-        {result.aiDetection ? (
+        {result.cvi ? (
           <p className="ai-detection-pass">
-            <strong>AI detection passed:</strong>{" "}
-            {result.aiDetection.aiScore.toFixed(1)}% estimated AI content · threshold{" "}
-            {result.aiDetection.threshold}%
+            <strong>CVI cleared:</strong>{" "}
+            {result.cvi.highestScore.toFixed(1)}% estimated AI content · threshold{" "}
+            {result.cvi.threshold}%
           </p>
         ) : null}
       </div>

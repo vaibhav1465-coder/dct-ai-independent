@@ -92,6 +92,11 @@ model CheckMetadata {
   aiDetectionPassed   Boolean?
   aiDetectionProvider String?
   aiDetectionModel    String?
+  aiHeadlineScore     Float?
+  aiBodyScore         Float?
+  aiDetectionThreshold Float?
+  cviVerdict          String?
+  cviAction           String?
   createdAt           DateTime    @default(now())
   feedback            Feedback?
 
